@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1">
+  <title>Understand Rules Generator</title>
+
+  <script>
+    function randint(from, to) {
+      return from + Math.floor(Math.random() * (to - from + 1));
+    }
+    function pickRandom(arr) {
+      return arr[randint(0, arr.length - 1)];
+    }
+    function randomAmount(rmAtLeast = false) {
+      return pickRandom(["all", "exactly one", ...rmAtLeast ? [] : ["at least one"]]);
+    }
+    function randomCoord(onlyCorner = false) {
+      if (Math.random() < .33) {
+        return onlyCorner
+          ? pickRandom(["A1", "G1", "A7", "G7"])
+          : String.fromCharCode(65 + randint(0, 6), 49 + randint(0, 6));
+      }
+      return onlyCorner
+        ? pickRandom(["top left", "top right", "bottom left", "bottom right"]) + " cell"
+        : pickRandom([
+          "top left",
+          "top middle",
+          "top right",
+          "middle left",
+          "center",
+          "middle right",
+          "bottom left",
+          "bottom middle",
+          "bottom right",
+        ]) + " cell";
+    }
+    function generate() {
+      const rules = [];
+      const specialRule = Math.random() < .33 ? randint(1, 6) : 0;
+      // const specialRule = randint(1, 6);
+      // const specialRule: number = 0;
+      let ignoreStartOnRule = false;
+      let ignoreEndOnRule = false;
+      let ignoreAvoidRule = false;
+      let onlyExactlyVisit = false;
+      let ignoreEmpty = false;
+      let onlyCorner = false;
+      switch (specialRule) {
+        case 0: break;
+        case 1:
+          rules.push("Collect each type of shape");
+          ignoreAvoidRule = true;
+          break;
+        case 2:
+          rules.push("Don't collect 2 of the same shape");
+          onlyExactlyVisit = true;
+          break;
+        case 3: {
+          const forStart = Math.random() < .5;
+          const forEnd = !forStart || Math.random() < .5;
+          if (forStart)
+            rules.push(`Start${forEnd ? " and end " : " "}on shape there is only one of`);
+          else
+            rules.push("End on shape there is only one of");
+          ignoreStartOnRule = forStart;
+          ignoreEndOnRule = forEnd;
+          break;
+        }
+        case 4:
+          rules.push(`Collect exactly ${randint(6, 12)} shapes`);
+          ignoreEmpty = true;
+          onlyCorner = true;
+          break;
+        case 5:
+          rules.push("Start and end on the same shape");
+          ignoreStartOnRule = true;
+          ignoreEndOnRule = true;
+          break;
+        case 6:
+          rules.push(`Line length must be ${randint(6, 12)}`);
+          onlyCorner = true;
+          break;
+        default: throw new Error("Unknown special rule");
+      }
+      const unusedCells = new Set([
+        "circle",
+        "square",
+        "triangle",
+        "heard",
+        "diamond",
+        "star",
+        ...ignoreEmpty ? [] : ["empty cell"],
+      ]);
+      const popRandomCell = () => {
+        const cell = pickRandom([...unusedCells]);
+        unusedCells.delete(cell);
+        return cell;
+      };
+      let coordsAllowed = true;
+      if (!ignoreStartOnRule && Math.random() > .11) {
+        if (coordsAllowed && Math.random() < .14) {
+          rules.push(`Start on ${randomCoord(onlyCorner)}`);
+          coordsAllowed = false;
+        }
+        else
+          rules.push(`Start on ${popRandomCell()}`);
+      }
+      const addVisitRule = () => {
+        if (coordsAllowed && Math.random() < .14) {
+          rules.push(`Visit ${randomCoord()}`);
+          coordsAllowed = false;
+          return;
+        }
+        const visitCell = popRandomCell();
+        const visitAmount = visitCell !== "empty cell" && onlyExactlyVisit ? "" : randomAmount(ignoreAvoidRule) + " ";
+        const keyword = visitCell === "empty cell" ? "Visit" : "Collect";
+        rules.push(`${keyword} ${visitAmount}${visitCell}${visitAmount === "all " ? "s" : ""}`);
+      };
+      addVisitRule();
+      if (Math.random() < .5 || ignoreAvoidRule)
+        addVisitRule();
+      else
+        rules.push(`Avoid ${popRandomCell()}s`);
+      if (!ignoreAvoidRule)
+        rules.push(`Avoid ${popRandomCell()}s`);
+      if (!ignoreEndOnRule && Math.random() > .11) {
+        if (coordsAllowed && Math.random() < .14) {
+          rules.push(`End on ${randomCoord(onlyCorner)}`);
+          coordsAllowed = false;
+        }
+        else
+          rules.push(`End on ${popRandomCell()}`);
+      }
+      return rules;
+    }
+    document.addEventListener("DOMContentLoaded", update);
+    function update() {
+      const div = document.getElementById("rules");
+      div.innerHTML = "";
+      for (let i = 0; i < 20; i++) {
+        const ul = div.appendChild(document.createElement("ul"));
+        const rules = generate();
+        for (const rule of rules) {
+          const li = ul.appendChild(document.createElement("li"));
+          li.innerText = rule;
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      overflow-x: hidden;
+      background-color: #282d36;
+      margin: 0;
+      width: 100vw;
+      min-height: 100vh;
+      text-align: center;
+    }
+
+    button {
+      margin: 16px;
+      background-color: black;
+      border: solid 4px #282d36;
+      padding: 16px;
+      color: white;
+      font-weight: bold;
+      font-size: 24px;
+    }
+
+    button:hover {
+      border-color: red;
+      cursor: pointer;
+    }
+
+    #rules {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-around;
+      color: #bbbbbb;
+      margin: 0;
+    }
+
+    ul {
+      margin: 32px;
+      text-align: left;
+    }
+  </style>
+</head>
+
+<body>
+  <button onclick="update()">GENERATE !</button>
+  <div id="rules" style="display: flex;"></div>
+</body>
+
+</html>
